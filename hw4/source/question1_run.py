@@ -1,9 +1,6 @@
 from mdp import mdp
 import numpy as np
 from grid_map import grid_map
-from mdp import mdp
-from ir_sim.env import EnvBase
-from pathlib import Path
 import sys
 
 cur_path = sys.path[0]

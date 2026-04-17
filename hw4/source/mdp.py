@@ -13,6 +13,17 @@ class mdp:
         self.policy_matrix = np.ones((grid_map.state_space[0], grid_map.state_space[1], len(self.action_space))) / len(self.action_space)  # policy matrix, include the probability of each action, the init probabilities are equal 
         self.grid_map = grid_map
 
+    def _is_terminal_state(self, state_index):
+        return state_index == self.grid_map.goal_index
+
+    def _action_value(self, policy_value, state_index, action_index):
+        next_state, reward, state_prob, done = self.grid_map.step(state_index, action_index)
+
+        if done or next_state == self.grid_map.goal_index:
+            return state_prob * reward
+
+        return state_prob * (reward + self.gamma * policy_value[next_state[0], next_state[1]])
+
     def policy_iteration(self, policy_value):
 
         ## please complete this function for question2 by 1. calculating the action value 2. finding the action index with maximum value
@@ -26,26 +37,22 @@ class mdp:
 
         for i in range(self.state_space[0]):
             for j in range (self.state_space[1]):
+                state_index = (i, j)
+
+                if self._is_terminal_state(state_index):
+                    self.policy_matrix[i, j, :] = 0
+                    self.policy_matrix[i, j, 0] = 1
+                    continue
 
                 old_action_index = np.argmax(self.policy_matrix[i, j])
                 action_value_list = []
-                state_index = (i, j)
 
                 for action_index, action in enumerate(self.action_space):
-                    next_state, reward, state_prob, done = self.grid_map.step(state_index, action_index)
-
-                    '''
-                    calculate the action value
-                    
-                    action_value = ?
-                    '''
+                    action_value = self._action_value(policy_value, state_index, action_index)
 
                     action_value_list.append(action_value)
 
-                '''
-                find the action index with maximum action value
-                action_index = ?
-                '''
+                action_index = int(np.argmax(action_value_list))
 
                 self.policy_matrix[i, j, :] = 0
                 self.policy_matrix[i, j, action_index] = 1 
@@ -69,26 +76,22 @@ class mdp:
             
             for i in range (self.state_space[0]):
                 for j in range (self.state_space[1]):
-                    
-                    old_value = policy_value[i, j]
-                    
                     state_index = (i, j)
+                    old_value = policy_value[i, j]
+
+                    if self._is_terminal_state(state_index):
+                        policy_value[i, j] = 0
+                        delta = max(delta, abs(old_value - policy_value[i, j]))
+                        continue
+
                     temp_action_value = 0
 
                     for action_index, action_prob in enumerate(self.policy_matrix[i, j]): 
-                        next_state_index, reward, state_prob, done = self.grid_map.step( state_index, action_index)
-
-                        '''
-                        calculate the temp_action_value (policy value) 
-                        temp_action_value = ?
-                        '''
+                        temp_action_value += action_prob * self._action_value(policy_value, state_index, action_index)
                         
                     policy_value[i, j] = temp_action_value
 
-                    '''
-                    complete the judgement condition indicator  (Compare the maximum difference value with the threshold to judge)
-                    delta = ?
-                    '''
+                    delta = max(delta, abs(old_value - policy_value[i, j]))
                    
             if delta < threshold:
                 break
@@ -106,19 +109,20 @@ class mdp:
             delta = 0
             for i in range(self.state_space[0]):
                 for j in range(self.state_space[1]):
-                    old_value = policy_value[i, j]
-                    temp_action_value = []
                     state_index = (i, j)
-                    
-                    '''
-                    update the policy_value
-                    policy_value = ?
-                    '''
+                    old_value = policy_value[i, j]
 
-                    '''
-                    complete the judgement condition indicator delta:
-                    delta = ?
-                    '''
+                    if self._is_terminal_state(state_index):
+                        policy_value[i, j] = 0
+                    else:
+                        temp_action_value = []
+
+                        for action_index, action in enumerate(self.action_space):
+                            temp_action_value.append(self._action_value(policy_value, state_index, action_index))
+
+                        policy_value[i, j] = max(temp_action_value)
+
+                    delta = max(delta, abs(old_value - policy_value[i, j]))
 
             iteration_num += 1
             print("iteration_num:", iteration_num)
@@ -132,17 +136,18 @@ class mdp:
     def get_policy_action(self, state_index):
         # get the action based on the value iteration algorithm
 
-        return np.argmax( mdp.policy_matrix[ state_index[0], state_index[1] ] )
+        return int(np.argmax(self.policy_matrix[state_index[0], state_index[1]]))
 
     def get_value_action(self, policy_value, state_index):
         # get the action based on the value iteration algorithm (the index of maximum action value)    
         # complete this function for question3
 
+        if self._is_terminal_state(state_index):
+            return 0
+
         temp_action_value = []  # list of action values
 
-        '''
-        caculate the value of each action
-        temp_action_value = ?
-        '''
+        for action_index, action in enumerate(self.action_space):
+            temp_action_value.append(self._action_value(policy_value, state_index, action_index))
 
-        return np.argmax(temp_action_value)
+        return int(np.argmax(temp_action_value))
