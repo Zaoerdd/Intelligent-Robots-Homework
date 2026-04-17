@@ -3,11 +3,15 @@ from ir_sim.env import EnvBase
 from grid_graph import grid_graph
 from dwa import dynamic_window_approach
 import argparse
+import os
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-a', '--animation', action='store_true')
 args = parser.parse_args()
+
+if args.animation:
+    os.makedirs('animation_buffer', exist_ok=True)
 
 env = EnvBase('question2.yaml', save_ani=args.animation)
 grid_map = grid_graph(grid_map_matrix=env.world.grid_map, xy_reso=env.world.reso)

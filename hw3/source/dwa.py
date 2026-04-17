@@ -1,4 +1,3 @@
-from re import S
 import numpy as np
 from math import sqrt, inf
 
@@ -27,11 +26,23 @@ class dynamic_window_approach:
         vel_pair_list = []
         pre_traj_list = []
 
+        cur_pose = np.array(cur_pose, dtype=float).reshape(2, 1)
+        goal_pose = np.array(goal_pose, dtype=float).reshape(2, 1)
+        current_vel = np.array(current_vel, dtype=float).reshape(2, 1)
+
         # Calculate the admissable velocity
         min_vx, max_vx, min_vy, max_vy = self.search_space(current_vel)
+        vx_samples = np.arange(min_vx, max_vx + 1e-9, 0.1)
+        vy_samples = np.arange(min_vy, max_vy + 1e-9, 0.1)
 
-        for vx in np.arange(min_vx, max_vx, 0.1):
-            for vy in np.arange(min_vy, max_vy, 0.1):
+        if vx_samples.size == 0:
+            vx_samples = np.array([min_vx])
+
+        if vy_samples.size == 0:
+            vy_samples = np.array([min_vy])
+
+        for vx in vx_samples:
+            for vy in vy_samples:
                 pre_traj = self.predict_traj(cur_pose, vx, vy) # predict the trajectory under current velocity
                 cost = self.cost_function(goal_pose, vx, vy, pre_traj, vel_cost_gain=v_gain, goal_cost_gain=g_gain, obstacle_cost_gain=o_gain)  # the object(cost) function for you to complete. you should complete this function for the homework question2
 
@@ -50,12 +61,14 @@ class dynamic_window_approach:
         return np.c_[dwa_vel], dwa_traj
 
     def search_space(self, current_vel):
- 
-        min_vx = max( self.vx_range[0], current_vel[0] - self.time_int * self.acce)
-        max_vx = min( self.vx_range[1], current_vel[0] + self.time_int * self.acce)
+        cur_vx = float(current_vel[0, 0])
+        cur_vy = float(current_vel[1, 0])
 
-        min_vy = max( self.vy_range[0], current_vel[1] - self.time_int * self.acce)
-        max_vy = min( self.vy_range[1], current_vel[1] + self.time_int * self.acce)
+        min_vx = max(self.vx_range[0], cur_vx - self.time_int * self.acce)
+        max_vx = min(self.vx_range[1], cur_vx + self.time_int * self.acce)
+
+        min_vy = max(self.vy_range[0], cur_vy - self.time_int * self.acce)
+        max_vy = min(self.vy_range[1], cur_vy + self.time_int * self.acce)
 
         return min_vx, max_vx, min_vy, max_vy
 
@@ -64,6 +77,7 @@ class dynamic_window_approach:
         
         pre_traj = []
         cur_vel = np.array( [ [vx], [vy] ] ) 
+        cur_pose = np.array(cur_pose, dtype=float).reshape(2, 1)
         # print(cur_vel)
         i = 0
         while i < self.pre_time:
@@ -81,20 +95,26 @@ class dynamic_window_approach:
         # (2) cost realted to the goal, the closer position to the goal is better, 30%
         # (3) cost related to the obstacle, move away from the obstacle is better, 40%
 
-        print('you should complete the cost function for question2')
-        pass
-        # return cost
+        vel_cost = self.vel_cost(vx, vy)
+        goal_cost = self.cost_to_goal(pre_traj, goal_pose)
+        obstacle_cost = self.cost_to_obstacle(pre_traj)
+
+        cost = vel_cost_gain * vel_cost + goal_cost_gain * goal_cost + obstacle_cost_gain * obstacle_cost
+        return cost
 
     def vel_cost(self, vx, vy):
         # you should complete the function for question2
         # the cost function about the velocity cost (hint: maximize the velocity is better, you can use the norm of this velocity)
-        pass
+        speed = sqrt(vx ** 2 + vy ** 2)
+        max_speed = sqrt(self.vx_range[1] ** 2 + self.vy_range[1] ** 2)
+        return max_speed - speed
 
     def cost_to_goal(self, pre_traj, goal):
         # you should complete the function for question2
         # the closer position to the goal is better (hint: use the position of the final point in the pre_traj to judge. )
-
-        pass
+        final_pos = np.array(pre_traj[-1], dtype=float).reshape(2, 1)
+        goal = np.array(goal, dtype=float).reshape(2, 1)
+        return float(np.linalg.norm(final_pos - goal))
         
 
     def cost_to_obstacle(self, pre_traj):
@@ -102,13 +122,31 @@ class dynamic_window_approach:
         # the cost to the avoid the obstacles, move away from the obstacle is better 
         # (hint: the minimum distance between the predicted trajectory and obstacle in grid map, 
         # you can use the below function point_to_obstalce to calculate the distance with each point)
-        pass
+        min_distance = inf
+        for point in pre_traj:
+            distance = self.point_to_obstalce(point)
+
+            if distance <= max(self.graph.xy_reso[0, 0], self.graph.xy_reso[1, 0]):
+                return inf
+
+            min_distance = min(min_distance, distance)
+
+        return 1.0 / (min_distance + 1e-6)
 
         
     def point_to_obstalce(self, point):
         # the distance between current point and the obstacle depending on the grid map 
 
+        max_x = self.graph.width * self.graph.xy_reso[0, 0]
+        max_y = self.graph.height * self.graph.xy_reso[1, 0]
+
+        if point[0, 0] < 0 or point[1, 0] < 0 or point[0, 0] >= max_x or point[1, 0] >= max_y:
+            return 0.0
+
         index_x, index_y = self.graph.pose_to_index(point[0, 0], point[1, 0])
+
+        if self.graph.grid_map[index_x, index_y] != 0:
+            return 0.0
 
         temp_x = (self.graph.obstacle_index[0] - index_x) * self.graph.xy_reso[0, 0]
         temp_y = (self.graph.obstacle_index[1] - index_y) * self.graph.xy_reso[1, 0] 
@@ -121,8 +159,18 @@ class dynamic_window_approach:
     def astar_cost(self, pre_traj, astar_path):
         # you should complete the function for question3
         # related to the distance between the positions in pre_traj and points in astar_path, 20%
-        print('you should complete the astar cost function for question3')
-        pass
+        if astar_path is None or len(astar_path) == 0:
+            return 0
+
+        path_points = np.array([self.graph.index_to_pose(*index) for index in astar_path], dtype=float)
+        distance_sum = 0.0
+
+        for point in pre_traj:
+            point_xy = np.array([point[0, 0], point[1, 0]], dtype=float)
+            distances = np.linalg.norm(path_points - point_xy, axis=1)
+            distance_sum += float(np.min(distances))
+
+        return distance_sum / len(pre_traj)
         
 
         

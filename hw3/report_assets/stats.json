@@ -1,0 +1,18 @@
+{
+  "question1": {
+    "visited_nodes": 268,
+    "path_points": 31,
+    "path_length_m": 3.58
+  },
+  "question2": {
+    "steps": 38,
+    "final_distance_m": 0.17,
+    "trajectory_length_m": 6.191
+  },
+  "question3": {
+    "astar_path_points": 31,
+    "steps": 67,
+    "final_distance_m": 0.13,
+    "trajectory_length_m": 10.839
+  }
+}

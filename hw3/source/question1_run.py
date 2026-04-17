@@ -2,11 +2,15 @@ from ir_sim.env import EnvBase
 from Astar import Astar
 from grid_graph import grid_graph
 import argparse
+import os
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-a', '--animation', action='store_true')
 args = parser.parse_args()
+
+if args.animation:
+    os.makedirs('animation_buffer', exist_ok=True)
 
 env = EnvBase('question1.yaml', save_ani=args.animation)
 grid_map = grid_graph(grid_map_matrix=env.world.grid_map, xy_reso=env.world.reso)

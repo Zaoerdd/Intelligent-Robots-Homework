@@ -3,11 +3,15 @@ from grid_graph import grid_graph
 from dwa import dynamic_window_approach
 from Astar import Astar
 import argparse
+import os
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-a', '--animation', action='store_true')
 args = parser.parse_args()
+
+if args.animation:
+    os.makedirs('animation_buffer', exist_ok=True)
 
 env = EnvBase('question3.yaml', save_ani=args.animation)
 grid_map = grid_graph(env.world.grid_map, env.world.reso)
